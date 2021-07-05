@@ -1,9 +1,5 @@
 ---
-- name: Create django project user
-  user:
-    name: "{{ django_project_username }}"
-    state: present
-  when: django_project_username != ""
+
 
 - name: Ensure git is installed
   apt:

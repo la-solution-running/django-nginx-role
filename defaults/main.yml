@@ -1,8 +1,18 @@
 ---
-django_config: '{{ lookup("env", "DJANGO_CONFIG") }}'
+django_config: 'myproject.settings'
 django_max_fileupload_size: '100M'
-django_project_name: '{{ lookup("env", "DJANGO_PROJECT_NAME") }}'
 django_projects_directory: '/opt'
-django_server_name: '{{ lookup("env", "DJANGO_SERVER_NAME") }}'
-django_static_dir: '{{ lookup("env", "DJANGO_STATIC_DIR") }}'
-django_wsgi_file: '{{ lookup("env", "DJANGO_WSGI_FILE") }}'
+django_server_name: ''
+django_project_name: ''
+django_settings_file_path: "{{ dir_project }}/myproject/settings_local.py"
+django_static_dir: '/opt/statics'
+django_wsgi_file: '{{ dir_project }}/myproject/wsgi.py'
+django_database_name: django-db
+django_database_username: django-db-username
+django_database_password: ""
+django_project_repo_url: ""
+django_project_target_branch: "master"
+django_project_log_dir: "/var/log/{{ django_project_name }}/"
+django_project_warning_log_file: "{{ django_project_log_dir }}warning.log"
+django_project_debug_log_file: "{{ django_project_log_dir }}debug.log"
+django_project_syslog_file: "{{ django_project_log_dir }}system.log"
