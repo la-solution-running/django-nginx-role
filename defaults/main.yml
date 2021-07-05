@@ -1,0 +1,8 @@
+---
+django_config: '{{ lookup("env", "DJANGO_CONFIG") }}'
+django_max_fileupload_size: '100M'
+django_project_name: '{{ lookup("env", "DJANGO_PROJECT_NAME") }}'
+django_projects_directory: '/opt'
+django_server_name: '{{ lookup("env", "DJANGO_SERVER_NAME") }}'
+django_static_dir: '{{ lookup("env", "DJANGO_STATIC_DIR") }}'
+django_wsgi_file: '{{ lookup("env", "DJANGO_WSGI_FILE") }}'

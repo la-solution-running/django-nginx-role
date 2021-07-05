@@ -1,0 +1,22 @@
+---
+- name: Configure facts
+  set_fact:
+    dir_django_uwsgi_socket: '/run/uwsgi/app/{{ django_project_name }}'
+    dir_project: '{{ django_projects_directory }}/{{ django_project_name }}'
+    dir_ssl_certificate: '/etc/letsencrypt/live/{{ django_server_name.split(" ")[0] }}'
+    project_config_name: 'django-{{ django_project_name }}'
+- name: More facts
+  set_fact:
+    python_env: '{{ dir_project }}/virtualenv'
+    django_uwsgi_socket: '{{ dir_django_uwsgi_socket }}'
+    django_ssl_certificate_path: '{{ dir_ssl_certificate }}/fullchain.pem'
+    django_ssl_certificate_key_path: '{{ dir_ssl_certificate }}/privkey.pem'
+    
+  changed_when: True
+  notify:
+    - start nginx
+    - start uwsgi
+
+- include_tasks: deps.yml
+- include_tasks: deploy.yml
+- include_tasks: config.yml

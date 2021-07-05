@@ -1,0 +1,81 @@
+---
+- name: Check SSL certificate file
+  become: true
+  register: ssl_certificate_file
+  stat:
+    path: '{{ django_ssl_certificate_path }}'
+
+- name: Configure nginx non-SSL config file
+  become: true
+  template:
+    src: django-nginx.conf
+    dest: '/etc/nginx/sites-available/{{ project_config_name }}.conf'
+  when: not ssl_certificate_file.stat.exists
+  notify:
+    - restart nginx
+
+- name: Configure nginx SSL config file
+  become: true
+  template:
+    src: django-nginx-ssl.conf
+    dest: '/etc/nginx/sites-available/{{ project_config_name }}.conf'
+  when:
+    - ssl_certificate_file.stat.exists
+  notify:
+    - restart nginx
+
+- name: Enable nginx app
+  become: true
+  file:
+    src: '/etc/nginx/sites-available/{{ project_config_name }}.conf'
+    dest: '/etc/nginx/sites-enabled/{{ project_config_name }}.conf'
+    state: link
+  notify:
+    - restart nginx
+
+- name: Create socket directory
+  become: true
+  file:
+    path: '{{ dir_django_uwsgi_socket }}'
+    state: directory
+
+- name: Configure uwsgi app
+  become: true
+  template:
+      src: django-uwsgi.ini
+      dest: '/etc/uwsgi/apps-available/{{ project_config_name }}.ini'
+  notify:
+    - restart uwsgi
+
+- name: Enable uwsgi app
+  become: true
+  file:
+      dest: '/etc/uwsgi/apps-enabled/{{ project_config_name }}.ini'
+      src: '/etc/uwsgi/apps-available/{{ project_config_name }}.ini'
+      state: link
+  notify:
+    - restart uwsgi
+
+- name: Install certbot
+  pip:
+    name: 
+      - certbot
+      - certbot-nginx
+    virtualenv: '{{ python_env }}'
+
+- name: Configure Lets Encrypt
+  become: true
+  shell: '{{ python_env }}/bin/certbot -n --nginx --agree-tos --email {{ django_project_email_host_user }} --domains {{ django_server_name.split(" ") | join(",") }}'
+  register: certbot_result
+  when: not ssl_certificate_file.stat.exists
+  changed_when: '"Keeping" not in certbot_result.stdout'
+  args:
+    executable: /bin/bash
+- name: Configure nginx SSL config file
+  become: true
+  template:
+    src: django-nginx-ssl.conf
+    dest: '/etc/nginx/sites-available/{{ project_config_name }}.conf'
+  when: not ssl_certificate_file.stat.exists
+  notify:
+    - restart nginx

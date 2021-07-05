@@ -1,0 +1,121 @@
+---
+- name: Create django project user
+  user:
+    name: "{{ django_project_username }}"
+    state: present
+  when: django_project_username != ""
+
+- name: Ensure git is installed
+  apt:
+    name: git
+    state: present
+
+- name: Clone project
+  git:
+    repo: "{{ django_project_repo_url }}"
+    dest: "{{ dir_project }}"
+    version: "{{ django_project_target_branch }}"
+    accept_hostkey: yes
+    key_file: /root/.ssh/id_rsa.github
+    force: yes
+    update: no
+  ignore_errors: yes
+  register: clone_command_res
+
+- name: Only allow the expected failure
+  assert:
+    that: "not clone_command_res['failed'] or 'already exists and is not an empty directory' in clone_command_res['msg'].lower()"
+
+
+- name: Check that the requirements.txt exists
+  stat:
+    path: "{{ dir_project }}/requirements.txt"
+  register: requirements_stat
+
+- name: Install virtualenv
+  pip:
+    name: virtualenv
+    state: present
+  remote_user: "{{ django_project_user | default('root') }}"
+
+- name: Install dependencies
+  pip:
+    requirements: "{{ dir_project }}/requirements.txt"
+    virtualenv: '{{ python_env }}'
+
+- name: Upload settings
+  template:
+    src: django-settings_local.py.j2
+    dest: "{{django_settings_file_path}}"
+    owner: root
+    group: root
+    mode: '0600'
+    backup: yes
+
+- name: Ensures log dirs exists
+  file:
+    path: "{{ django_project_debug_log_file | dirname }}"
+    state: directory
+  remote_user: "{{ django_project_user | default('root') }}"
+  with_items:
+    - "{{ django_project_syslog_file | dirname }}"
+    - "{{ django_project_debug_log_file | dirname }}"
+    - "{{ django_project_warning_log_file | dirname }}"
+
+- name: Ensure permissions on log dir
+  file:
+    path: "{{ django_project_log_dir }}"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    recurse: true
+  changed_when: false
+
+- name: Connect to acme database and set user's password with no expire date
+  become: true
+  become_user: postgres
+  postgresql_user:
+    db: "{{ django_database_name }}"
+    name: "{{ django_database_username }}"
+    password: "{{ vault_postgresql_users_password }}"
+    encrypted: yes
+    priv: "CONNECT/ALL"
+    expires: infinity
+  notify:
+    - restart postgresql
+
+
+- name: Collect static files
+  django_manage:
+    app_path: '{{ dir_project }}'
+    command: collectstatic
+    virtualenv: '{{ python_env }}'
+
+- name: Migrate database
+  django_manage:
+    app_path: '{{ dir_project }}'
+    command: migrate
+    virtualenv: '{{ python_env }}'
+
+- name: Migrate database cache
+  django_manage:
+    app_path: '{{ dir_project }}'
+    command: createcachetable
+    virtualenv: '{{ python_env }}'
+
+- name: Ensure permissions on django_project install
+  file:
+    path: "{{ dir_project }}"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    recurse: true
+    mode: '0755'
+  changed_when: false
+
+#- name: Point symlink to next version
+#  file:
+#    src: '{{ dir_project }}'
+#    dest: '{{ link_current }}'
+#    state: link
+#  notify: restart uwsgi

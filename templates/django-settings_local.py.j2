@@ -1,0 +1,103 @@
+import os
+
+from django.conf import settings
+
+ALLOWED_HOSTS = [
+{% for host in django_project_allowed_hosts %}
+    '{{ host }}',
+{% endfor %}
+]
+
+DEBUG = False
+
+STATIC_ROOT = os.path.join(settings.BASE_DIR, 'static')
+MEDIA_ROOT = os.path.join(settings.BASE_DIR, 'media')
+
+DATABASES = {
+    'default':{
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': "{{ django_database_name }}",
+        'USER': "{{ django_database_username }}",
+        'PASSWORD': "{{ vault_postgresql_users_password }}",
+        'HOST': '127.0.0.1',
+        'PORT': '',
+}
+}
+# Email
+DEFAULT_FROM_EMAIL = '{{ django_project_email_host_user }}'
+EMAIL_SUBJECT_PREFIX = '[La Centrale SPODE] '
+EMAIL_BACKEND = '{{ django_project_email_backend }}'
+EMAIL_HOST = '{{ django_project_email_host }}'
+EMAIL_HOST_PASSWORD = '{{ django_project_email_host_password }}'
+EMAIL_HOST_USER = '{{ django_project_email_host_user }}'
+
+WORDPRESS_CONFIGURATION = {
+    {%- for shop_name, shop_configuration in shop_global_configuration.items() %}
+        "{{ shop_name }}": {
+
+            "url" : "{{ shop_configuration['shop_hostname'] }}",
+            "wordpress": {
+                "wp_login": {
+                    "log": "{{  shop_configuration['wordpress']['shop_wordpress_web_login'] }}",
+                    "pwd": "{{  shop_configuration['wordpress']['shop_wordpress_web_password'] }}"
+                },
+                "auth" : (
+                    "{{ shop_configuration['wordpress']['shop_wordpress_application_login'] }}",
+                    "{{ shop_configuration['wordpress']['shop_wordpress_application_password'] }}", # FIXME: Ansible Vault
+                ),
+            },
+            "woocommerce": {
+                "consumer_key": "{{ shop_configuration['woocommerce']['shop_woocommerce_consumer_key'] }}",  # FIXME: Ansible Vault
+                "consumer_secret": "{{ shop_configuration['woocommerce']['shop_woocommerce_consumer_secret'] }}",  # FIXME: Ansible Vault
+            },
+            "cash_register": {
+                "connector_type": "{{ shop_configuration['cash_register']['shop_cash_register_connector_type'] }}",
+                "authentication_arg":[
+                    {%- for authentication_arg in shop_configuration['cash_register']['shop_cash_register_authentication_args'] %} 
+                    "{{ authentication_arg }}", 
+                    {%- endfor %}
+                ],
+            },
+        },
+    {%- endfor %}
+}
+os.path.join(settings.BASE_DIR, 'central.sqlite3'),
+PILOT_INSTANCE = "{{ shop_pilot_instance }}"
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+        "formatters": {
+            "main_formatter": {
+                "format": "[%(asctime)s] %(name)-12s %(levelname)-8s: %(message)s",
+                'datefmt' : '%a %d/%m/%Y %H:%M:%S',
+            },
+    },
+    'handlers': {
+        'file_warning': {
+                'class': 'logging.handlers.RotatingFileHandler',
+                'backupCount': 5,
+                'maxBytes': 20971520,
+                'level': 'WARNING',
+                'filename': "{{ django_project_warning_log_file }}",
+                'formatter': 'main_formatter',
+        },
+        'file_debug': {
+
+                'class': 'logging.handlers.RotatingFileHandler',
+                'backupCount': 5,
+                'maxBytes': 20971520,
+                'level': 'DEBUG',
+                'filename': "{{ django_project_debug_log_file }}",
+                'formatter': 'main_formatter',
+        },
+         'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'INFO',
+            'formatter': 'main_formatter',
+        },
+    },
+    'root': {
+        'handlers': ['file_warning', "file_debug", 'console',],
+        'level': 'DEBUG',
+    },
+}
